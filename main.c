@@ -68,6 +68,7 @@ int main(void)
 	// since there is a HAL library function already using it.
 	uint32_t mainLoopCount = 0;
 	uint32_t LEDstate = 0;
+	float freqMain = 330.0f;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -98,15 +99,23 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    myMainWhileLoopStuff();
+
+
+    myMainWhileLoopStuff(freqMain);
+
 
     // Flash some LEDs to check things are awake and running:
    	if (mainLoopCount++ >= 200000) {
    		mainLoopCount = 0;
    		LEDstate = 1 - LEDstate;
    	}
-   	if (LEDstate) BLUEON;
-   	else BLUEOFF;
+   	if (LEDstate) {BLUEON;
+   	freqMain = 660.0f;
+   	}
+
+   	else {BLUEOFF;
+   	freqMain = 330.0f;
+   	}
   }
   /* USER CODE END 3 */
 }

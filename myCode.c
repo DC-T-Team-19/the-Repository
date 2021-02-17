@@ -10,29 +10,23 @@
 #include "myCode.h"
 #include <math.h>
 
-// defining important variables
-#define PBSIZE 4096 //size of buffer
+#define PBSIZE 4096
 #define SINESIZE 1024
 #define PI 3.141592653589793
 
 int16_t PlayBuff[PBSIZE];
 int16_t SineBuff[SINESIZE];
 uint16_t buffer_offset = 0;
-
-//States of buffer and how to fill it up
 enum eNoteStatus { ready, going, finish }  noteStatus = ready;
 enum eBufferStatus { empty, finished, firstHalfReq, firstHalfDone, secondHalfReq, secondHalfDone }  bufferStatus = empty;
 
 // Set up the first note:
-float noteFrequencyLeft = 330.0f; //plays an E
-float noteFrequencyRight = 331.0f;
+float noteFrequencyLeft = 660.0f;
+float noteFrequencyRight = 661.0f;
 float currentPhaseLeft = 0.0;
 float currentPhaseRight = 0.0;
-float phaseIncL = 0.0f;
-float phaseIncR = 0.0f;
 float phaseIncLeft = 0.0f;
 float phaseIncRight = 0.0f;
-float stepChange = 0.5; //change this value to change the frequency of the note
 
 void mySysInitCode(void) {
 	  initAudioTimer();
@@ -45,38 +39,25 @@ void mySysInitCode(void) {
 	  GPIOD->MODER |= 0x55 << 24;
 }
 
-float changeFrequencyL(float step) {
-	phaseIncLeft = phaseIncL * step;
-	return phaseIncLeft;
-}
-
-float changeFrequencyR(float step) {
-	phaseIncRight = phaseIncR * step;
-	return phaseIncRight;
-}
-
 void mySetupThingsStuff(void) {
-	for (int i = 0; i <= SINESIZE; i++) { //loops until i is the size of the wavetable 1024
-		float q = 32760 * sin(i * 2.0 * PI / SINESIZE);//32760 is the amplitude
+	for (int i = 0; i <= SINESIZE; i++) {
+		float q = 32760 * sin(i * 2.0 * PI / SINESIZE);
 		SineBuff[i] = (int16_t)q;
 	}
-    for(int i=0; i <= PBSIZE; i++) {
-    	PlayBuff[i] = 0;
-    } // Silence the buffer
+    for(int i=0; i <= PBSIZE; i++) { PlayBuff[i] = 0; } // Silence the buffer
 
-    //Calculating the phase of stereo output
-    phaseIncL = SINESIZE * noteFrequencyLeft / AUDIO_FREQUENCY_44K;
-    phaseIncR = SINESIZE * noteFrequencyRight / AUDIO_FREQUENCY_44K;
-
-    phaseIncLeft = changeFrequencyL(stepChange);
-    phaseIncRight = changeFrequencyR(stepChange);
+    phaseIncLeft = SINESIZE * noteFrequencyLeft/ AUDIO_FREQUENCY_44K;
+    phaseIncRight = SINESIZE * noteFrequencyRight/ AUDIO_FREQUENCY_44K;
 
 	// Start the audio driver play routine:
 	myAudioStartPlaying((int16_t *)&PlayBuff[0], PBSIZE);
 	noteStatus = going;
 }
 
-void myMainWhileLoopStuff(void){
+void myMainWhileLoopStuff(float freq){
+
+	phaseIncLeft = SINESIZE * freq/ AUDIO_FREQUENCY_44K;
+	phaseIncRight = SINESIZE * (freq +1) / AUDIO_FREQUENCY_44K;
 
 	// If there's an active request to fill half of the buffer, then do so:
 	uint32_t startFill = 0, endFill = 0;
@@ -115,6 +96,8 @@ void myAudioHalfTransferCallback(void) {
 	}
 	else if (debugLED > 5) {
 		ORANGEON;
+
+
 	}
 }
 void myAudioTransferCompleteCallback(void) {
