@@ -9,14 +9,15 @@
 
 #include "myCode.h"
 #include <math.h>
+#include <stdio.h>
 
 #define PBSIZE 4096
 #define SINESIZE 1024
+#define BUFFTOTALAMPLITUDE 32760
 #define PI 3.141592653589793
 
 int16_t PlayBuff[PBSIZE];
 int16_t SineBuff[SINESIZE];
-int16_t modBuff[SINESIZE];
 uint16_t buffer_offset = 0;
 enum eNoteStatus { ready, going, finish }  noteStatus = ready;
 enum eBufferStatus { empty, finished, firstHalfReq, firstHalfDone, secondHalfReq, secondHalfDone }  bufferStatus = empty;
@@ -26,10 +27,12 @@ float noteFrequencyLeft = 660.0f;
 float noteFrequencyRight = 661.0f;
 float currentPhaseLeft = 0.0;
 float currentPhaseRight = 0.0;
+float currentPhaseMod =0.0f;
 float phaseIncLeft = 0.0f;
 float phaseIncRight = 0.0f;
+float phaseIncMod = 0.0f;
 float amplitude = 0.1;
-float vibratoFreq = 330;
+
 
 void mySysInitCode(void) {
 	  initAudioTimer();
@@ -44,15 +47,14 @@ void mySysInitCode(void) {
 
 void mySetupThingsStuff(void) {
 	for (int i = 0; i <= SINESIZE; i++) {
-		float q = amplitude * 32760 * sin(i * 2.0 * PI / SINESIZE);
+		float q = amplitude * BUFFTOTALAMPLITUDE * sin(i * 2.0 * PI / SINESIZE);
 		SineBuff[i] = (int16_t)q;
-		float p = amplitude * 32760 * sin(i * 2.0 * PI / SINESIZE);
-		modBuff[i] = (int16_t)p;////made another buff
 	}
     for(int i=0; i <= PBSIZE; i++) { PlayBuff[i] = 0; } // Silence the buffer
 
     phaseIncLeft = SINESIZE * noteFrequencyLeft/ AUDIO_FREQUENCY_44K;
     phaseIncRight = SINESIZE * noteFrequencyRight/ AUDIO_FREQUENCY_44K;
+    phaseIncMod = SINESIZE * noteFrequencyLeft/ AUDIO_FREQUENCY_44K;
 
 	// Start the audio driver play routine:
 	myAudioStartPlaying((int16_t *)&PlayBuff[0], PBSIZE);
@@ -63,8 +65,6 @@ void mySetupThingsStuff(void) {
 //							V --- Max edit
 void myMainWhileLoopStuff(float freq){ //float freq is the frequency that willl be played
 
-	phaseIncLeft = SINESIZE * freq/ AUDIO_FREQUENCY_44K;
-	phaseIncRight = SINESIZE * (freq +1) / AUDIO_FREQUENCY_44K;
 
 	// If there's an active request to fill half of the buffer, then do so:
 	uint32_t startFill = 0, endFill = 0;
@@ -78,13 +78,23 @@ void myMainWhileLoopStuff(float freq){ //float freq is the frequency that willl 
 		endFill = PBSIZE;
 		bufferStatus = secondHalfDone;
 	}
+
+
+
 	if (startFill != endFill) {
 		for (int i = startFill; i < endFill; i += 2) {
 
+
+			phaseIncMod = SINESIZE * (freq/4) /AUDIO_FREQUENCY_44K;
+			currentPhaseMod += phaseIncMod;
+			if (currentPhaseMod > SINESIZE) currentPhaseMod -= SINESIZE;
+
+			phaseIncLeft = SINESIZE * freq * modulateBy(SineBuff[(uint16_t)(currentPhaseMod)], 0.5)/ AUDIO_FREQUENCY_44K;
 			currentPhaseLeft += phaseIncLeft;
 			if (currentPhaseLeft > SINESIZE) currentPhaseLeft -= SINESIZE;
 			int32_t nextSampleLeft = SineBuff[(uint16_t)(currentPhaseLeft)];
 
+			phaseIncRight = SINESIZE * (freq + 1) * modulateBy(SineBuff[(uint16_t)(currentPhaseMod)], 0.5)/ AUDIO_FREQUENCY_44K;
 			currentPhaseRight += phaseIncRight;
 			if (currentPhaseRight > SINESIZE) currentPhaseRight -= SINESIZE;
 			int32_t nextSampleRight = SineBuff[(uint16_t)(currentPhaseRight)];
@@ -118,13 +128,13 @@ void myAudioTransferCompleteCallback(void) {
 		REDON;
 	}
 }
-/*
-float modulator(int onOff, float freq, float intensity) {
 
-	if(onOff = 1) {
+///FREQUENCY * modulateBy(modulator, amount)
+float modulateBy(uint16_t modulator, float amount){
 
+	if(amount > 1.0){return 1.0;}
 
-	}
-	else return 1.0;
+	return ((float)modulator * amount / BUFFTOTALAMPLITUDE) + 1;
 }
-*/
+//it returns a value between 0.5 and 1.5 (an octave bellow or above the carrier frequency)
+

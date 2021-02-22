@@ -25,5 +25,6 @@
 void mySysInitCode(void);
 void mySetupThingsStuff(void);
 void myMainWhileLoopStuff(float);
+float modulateBy(uint16_t, float);
 
 #endif /* INC_MYCODE_H_ */
