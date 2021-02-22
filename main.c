@@ -68,14 +68,11 @@ int main(void)
 	// since there is a HAL library function already using it.
 	uint32_t mainLoopCount = 0;
 	uint32_t LEDstate = 0;
-	
+
 	float freqMain = 330.0f;	// the Main frequency gets initalised to 330hz
 	int sequenceCount;
-<<<<<<< Updated upstream
-	float sequenceSteps[8] = {376, 523.3, 329.6, 523.3, 392.0, 523.3, 493.9, 440};
-=======
 	float sequenceSteps[8] = {376, 329.6, 440, 523.3, 392.0, 523.3, 493.9, 440};
->>>>>>> Stashed changes
+
 
 
   /* USER CODE END 1 */
@@ -110,7 +107,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 
-    myMainWhileLoopStuff(freqMain); 
+    myMainWhileLoopStuff(freqMain);
 
 
     // Flash some LEDs to check things are awake and running:
@@ -124,7 +121,7 @@ int main(void)
    		freqMain = sequenceSteps[sequenceCount];
 
    	}
-   	
+
    	if (LEDstate) BLUEON;
 
    	else BLUEOFF;
@@ -350,3 +347,5 @@ void assert_failed(uint8_t *file, uint32_t line)
 #endif /* USE_FULL_ASSERT */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
+
