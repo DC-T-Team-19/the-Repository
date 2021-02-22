@@ -16,6 +16,7 @@
 
 int16_t PlayBuff[PBSIZE];
 int16_t SineBuff[SINESIZE];
+int16_t modBuff[SINESIZE];
 uint16_t buffer_offset = 0;
 enum eNoteStatus { ready, going, finish }  noteStatus = ready;
 enum eBufferStatus { empty, finished, firstHalfReq, firstHalfDone, secondHalfReq, secondHalfDone }  bufferStatus = empty;
@@ -27,6 +28,8 @@ float currentPhaseLeft = 0.0;
 float currentPhaseRight = 0.0;
 float phaseIncLeft = 0.0f;
 float phaseIncRight = 0.0f;
+float amplitude = 0.1;
+float vibratoFreq = 330;
 
 void mySysInitCode(void) {
 	  initAudioTimer();
@@ -41,8 +44,10 @@ void mySysInitCode(void) {
 
 void mySetupThingsStuff(void) {
 	for (int i = 0; i <= SINESIZE; i++) {
-		float q = 32760 * sin(i * 2.0 * PI / SINESIZE);
+		float q = amplitude * 32760 * sin(i * 2.0 * PI / SINESIZE);
 		SineBuff[i] = (int16_t)q;
+		float p = amplitude * 32760 * sin(i * 2.0 * PI / SINESIZE);
+		modBuff[i] = (int16_t)p;////made another buff
 	}
     for(int i=0; i <= PBSIZE; i++) { PlayBuff[i] = 0; } // Silence the buffer
 
@@ -54,7 +59,9 @@ void mySetupThingsStuff(void) {
 	noteStatus = going;
 }
 
-void myMainWhileLoopStuff(float freq){
+
+//							V --- Max edit
+void myMainWhileLoopStuff(float freq){ //float freq is the frequency that willl be played
 
 	phaseIncLeft = SINESIZE * freq/ AUDIO_FREQUENCY_44K;
 	phaseIncRight = SINESIZE * (freq +1) / AUDIO_FREQUENCY_44K;
@@ -111,3 +118,13 @@ void myAudioTransferCompleteCallback(void) {
 		REDON;
 	}
 }
+/*
+float modulator(int onOff, float freq, float intensity) {
+
+	if(onOff = 1) {
+
+
+	}
+	else return 1.0;
+}
+*/
