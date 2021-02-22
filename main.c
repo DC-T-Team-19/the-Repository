@@ -71,7 +71,11 @@ int main(void)
 	
 	float freqMain = 330.0f;	// the Main frequency gets initalised to 330hz
 	int sequenceCount;
+<<<<<<< Updated upstream
 	float sequenceSteps[8] = {376, 523.3, 329.6, 523.3, 392.0, 523.3, 493.9, 440};
+=======
+	float sequenceSteps[8] = {376, 329.6, 440, 523.3, 392.0, 523.3, 493.9, 440};
+>>>>>>> Stashed changes
 
 
   /* USER CODE END 1 */
