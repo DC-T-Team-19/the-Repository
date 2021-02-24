@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "myCode.h"
+#include "basicFunctions.h"
+#include "interfacing.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,8 +67,23 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	// This is an attempt to get the LEDs flashing.  Sadly, I can't use the SysTick_Handler,
 	// since there is a HAL library function already using it.
-	uint32_t mainLoopCount = 0;
 	uint32_t LEDstate = 0;
+
+	GPIO_InitTypeDef b0;
+	b0.Pin = GPIO_PIN_0;	//Pin number in GPIOA (PA0)
+	b0.Mode = GPIO_MODE_INPUT;
+	b0.Pull = GPIO_PULLDOWN;
+	b0.Speed = GPIO_SPEED_FREQ_LOW;
+
+	GPIO_InitTypeDef b1;
+	b1.Pin = GPIO_PIN_1;	//Pin number in GPIOA (PA1)
+	b1.Mode = GPIO_MODE_INPUT;
+	b1.Pull = GPIO_PULLDOWN;
+	b1.Speed = GPIO_SPEED_FREQ_LOW;
+
+
+
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -87,8 +103,13 @@ int main(void)
   /* Initialise all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-  mySysInitCode();
-  mySetupThingsStuff();
+  initialiseAudio();
+  setupAudio();
+
+  //Enable clock for GPIOA and enable both buttons.
+  __GPIOA_CLK_ENABLE();
+  initialiseButton(b0);
+  initialiseButton(b1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -98,13 +119,15 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    myMainWhileLoopStuff();
+	mainWhileLoop();
 
     // Flash some LEDs to check things are awake and running:
-   	if (mainLoopCount++ >= 200000) {
-   		mainLoopCount = 0;
-   		LEDstate = 1 - LEDstate;
-   	}
+	if(checkButtonPress(b0) == 1){
+		changeFrequency(880.0f, 880.0f);
+	}
+	else if(checkButtonPress(b1) == 1){
+		changeFrequency(440.0f, 440.0f);
+	}
    	if (LEDstate) BLUEON;
    	else BLUEOFF;
   }
