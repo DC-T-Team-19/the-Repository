@@ -19,16 +19,20 @@ void setupClockPin() {
     GPIOC->AFR[1] &= 0xFFFFFF0F;
     RCC->CFGR &= 0x07FFFFFF;
     RCC->CFGR |= 0x30000000; // pre-scaler to divide by 4
+    __GPIOC_CLK_ENABLE();
 }
 
-//Enable the GPIO AHB clock using the following function
-__HAL_RCC_GPIOx_CLK_ENABLE();
-
-//Configure the GPIO pin(s) using
-HAL_GPIO_Init();
 
 //reads from the PC9 pin for the clock
- GPIO_PinState HAL_GPIO_ReadPin(GPIOc, GPIO_PIN_9);
+int readClockPin(){
+	GPIO_PinState pinState = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9);
+	if(pinState == 1){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
 
 //function to check how many times the clock goes high
 /*void clockTest(int highAmount) {
@@ -41,5 +45,5 @@ HAL_GPIO_Init();
 		}
 
 	}
-	changeFrequency(440,440);*/
-}
+	changeFrequency(440,440);
+}*/
