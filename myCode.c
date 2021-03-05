@@ -10,29 +10,30 @@
 #include "myCode.h"
 #include <math.h>
 
-// defining important variables
-#define PBSIZE 4096 //size of buffer
+#define PBSIZE 4096
 #define SINESIZE 1024
 #define PI 3.141592653589793
 
 int16_t PlayBuff[PBSIZE];
 int16_t SineBuff[SINESIZE];
+float SineModBuff[SINESIZE];
 uint16_t buffer_offset = 0;
-
-//States of buffer and how to fill it up
 enum eNoteStatus { ready, going, finish }  noteStatus = ready;
 enum eBufferStatus { empty, finished, firstHalfReq, firstHalfDone, secondHalfReq, secondHalfDone }  bufferStatus = empty;
 
 // Set up the first note:
-float noteFrequencyLeft = 330.0f; //plays an E
+float noteFrequencyLeft = 330.0f;
 float noteFrequencyRight = 331.0f;
+float noteFrequencyMod = 1.0f;/// <<<<< modulation frequency
 float currentPhaseLeft = 0.0;
 float currentPhaseRight = 0.0;
-float phaseIncL = 0.0f;
-float phaseIncR = 0.0f;
+float currentPhaseMod = 0.0;
 float phaseIncLeft = 0.0f;
 float phaseIncRight = 0.0f;
-float stepChange = 0.5; //change this value to change the frequency of the note
+float phaseIncMod = 0.0f;
+int range = 1;///<<<< number of octaves up and down it goes
+
+// range = 1  :  starts at notefrequency goes up by 1 octave, back to notefrequency, and then down 1 octave.
 
 void mySysInitCode(void) {
 	  initAudioTimer();
@@ -45,31 +46,20 @@ void mySysInitCode(void) {
 	  GPIOD->MODER |= 0x55 << 24;
 }
 
-float changeFrequencyL(float step) {
-	phaseIncLeft = phaseIncL * step;
-	return phaseIncLeft;
-}
-
-float changeFrequencyR(float step) {
-	phaseIncRight = phaseIncR * step;
-	return phaseIncRight;
-}
-
 void mySetupThingsStuff(void) {
-	for (int i = 0; i <= SINESIZE; i++) { //loops until i is the size of the wavetable 1024
-		float q = 32760 * sin(i * 2.0 * PI / SINESIZE);//32760 is the amplitude
+	for (int i = 0; i <= SINESIZE; i++) {
+		float q = 32760 * sin(i * 2.0 * PI / SINESIZE);
 		SineBuff[i] = (int16_t)q;
 	}
-    for(int i=0; i <= PBSIZE; i++) {
-    	PlayBuff[i] = 0;
-    } // Silence the buffer
+	for (int i = 0; i <= SINESIZE; i++) {
+		float q = sin(i * 2.0 * PI / SINESIZE);
+		SineModBuff[i] = q;
+		}
+    for(int i=0; i <= PBSIZE; i++) { PlayBuff[i] = 0; } // Silence the buffer
 
-    //Calculating the phase of stereo output
-    phaseIncL = SINESIZE * noteFrequencyLeft / AUDIO_FREQUENCY_44K;
-    phaseIncR = SINESIZE * noteFrequencyRight / AUDIO_FREQUENCY_44K;
-
-    phaseIncLeft = changeFrequencyL(stepChange);
-    phaseIncRight = changeFrequencyR(stepChange);
+    phaseIncLeft = SINESIZE * noteFrequencyLeft / AUDIO_FREQUENCY_44K;
+    phaseIncRight = SINESIZE * noteFrequencyRight / AUDIO_FREQUENCY_44K;
+    phaseIncMod = SINESIZE * noteFrequencyMod / AUDIO_FREQUENCY_44K;
 
 	// Start the audio driver play routine:
 	myAudioStartPlaying((int16_t *)&PlayBuff[0], PBSIZE);
@@ -93,10 +83,23 @@ void myMainWhileLoopStuff(void){
 	if (startFill != endFill) {
 		for (int i = startFill; i < endFill; i += 2) {
 
+			phaseIncMod = SINESIZE * noteFrequencyMod/ AUDIO_FREQUENCY_44K;
+			currentPhaseMod += phaseIncMod;
+			if (currentPhaseMod > SINESIZE) currentPhaseMod -= SINESIZE;
+
+			/*if (((float)SineBuff[(uint16_t)(currentPhaseMod)] / 32760) > 1.0f){
+					GREENON;
+			}*/
+
+			//(SineModBuff[(uint16_t)(currentPhaseMod)])
+			//												   | range of octaves it modulates
+			//												   v
+			phaseIncLeft = SINESIZE * noteFrequencyLeft * powf(range+1, SineModBuff[(uint16_t)currentPhaseMod])/ AUDIO_FREQUENCY_44K;
 			currentPhaseLeft += phaseIncLeft;
 			if (currentPhaseLeft > SINESIZE) currentPhaseLeft -= SINESIZE;
 			int32_t nextSampleLeft = SineBuff[(uint16_t)(currentPhaseLeft)];
 
+			phaseIncRight = SINESIZE * noteFrequencyRight * powf(range+1, SineModBuff[(uint16_t)currentPhaseMod])/ AUDIO_FREQUENCY_44K;
 			currentPhaseRight += phaseIncRight;
 			if (currentPhaseRight > SINESIZE) currentPhaseRight -= SINESIZE;
 			int32_t nextSampleRight = SineBuff[(uint16_t)(currentPhaseRight)];
