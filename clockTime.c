@@ -75,3 +75,48 @@ void speedUpClock() {
 	while(!(RCC->CFGR & RCC_CFGR_SW_PLL));
 }
 
+//Enables interupts
+void enableInterupts() {
+	NVIC_EnableIRQ(ADC_IRQn);
+}
+
+//Setting interupt priority to a value
+void setPriority(int value) {
+	NVIC_SetPriority(ADC_IRQn, value);
+}
+
+//Enable clock to counter
+//following example from 11.2.2
+void clockCountEn() {
+	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+	TIM3->PSC = 99;
+	TIM3->ARR = 39999;
+	TIM3->CR1 |= TIM_CR1_DIR;
+	TIM3->EGR |= TIM_EGR_UG;
+	TIM3->DIER |= TIM_DIER_UIE;
+	NVIC->ISER[29];
+	TIM3_IRGHandler();
+	TIM3->CR1 |= TIM_CR1_CEN;
+}
+
+void TIM3_IRGHandler() {
+	TIM3->SR &= ~TIM_SR_UIF;
+	int i = 500;
+	changeFrequency(i, i);
+	i +=20;
+	//Following code to run 4 times a second:
+}
+
+//Asynchronous Callback Request
+void asynCallback() {
+	RCC->APB1ENR |= RCC_APB1ENR_TIM6EN; // Enable clock
+	TIM6->PSC = 9999; // Set pre-scaler to 10,000
+	TIM6->CR1 |= TIM_CR1_OPM; // Enable one-pulse mode
+	TIM6->EGR |= TIM_EGR_UG; // Initialise counter
+	TIM6->CNT = 63936; // Load with 2^16 - 1600
+	//currentCount = 0; // Reset the count of pulses
+	NVIC_EnableIRQ(TIM6_DAC_IRQn); // Enable interrupt
+	TIM6->DIER |= TIM_DIER_UIE; // Enable interrupts
+	TIM6->CR1 |= TIM_CR1_CEN; // Enable the counter
+}
+

@@ -16,11 +16,21 @@
 #include "audio_replacement.h"
 #include "basicFunctions.h"
 
+//Clock
 void setupClockPin();
 void clockTest(int highAmount);
 int readClockPin();
 void checkCount(int amount);
 void externalClock();
 void speedUpClock();
+
+//Interupts
+void enableInterupts();
+void setPriority(int value);
+
+//Peripherals (Chapter 11)
+void clockCountEn();
+void TIM3_IRGHandler();
+void asynCallback();
 
 #endif /* INC_CLOCKTIME_H_ */
