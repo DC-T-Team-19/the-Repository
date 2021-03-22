@@ -36,4 +36,5 @@ void start();
 void createSineTable();
 
 
+
 #endif /* INC_BASICFUNCTIONS_H_ */

@@ -1,14 +1,18 @@
 
 #include "basicFunctions.h"
 #include <math.h>
+#include "ADSR.h"
 
 #define PBSIZE 4096
 #define SINESIZE 1024
 #define PI 3.141592653589793
+#define ASIZE 1024
 
 int16_t PlayBuff[PBSIZE];
 int16_t SineBuff[SINESIZE];
 uint16_t buffer_offset = 0;
+uint16_t counter = 0;
+
 enum eNoteStatus { ready, going, finish }  noteStatus = ready;
 enum eBufferStatus { empty, finished, firstHalfReq, firstHalfDone, secondHalfReq, secondHalfDone }  bufferStatus = empty;
 
@@ -20,6 +24,7 @@ float currentPhaseRight = 0.0;
 float phaseIncLeft = 0.0f;
 float phaseIncRight = 0.0f;
 uint32_t amplitude = 20000;
+float* aBuff;
 
 void initialiseAudio(void) {
 	  initAudioTimer();
@@ -35,6 +40,9 @@ void initialiseAudio(void) {
 
 void setupAudio(){
 	createSineTable();
+
+	aBuff = createATable();
+
     silenceBuff(); // Silence the buffer
 
     updatePhase();
@@ -50,6 +58,7 @@ void mainWhileLoop(){
 	else if (bufferStatus == secondHalfReq) {
 		secondHalfReqFill();
 	}
+	counter+=20;
 }
 
 uint32_t debugLED = 0;
@@ -135,6 +144,8 @@ void createSineTable(){
 }
 
 void fill(uint32_t startFill, uint32_t endFill){
+
+
 	if(startFill != endFill){
 		for (int i = startFill; i < endFill; i += 2){
 			currentPhaseLeft += phaseIncLeft;
@@ -145,9 +156,12 @@ void fill(uint32_t startFill, uint32_t endFill){
 			if (currentPhaseRight > SINESIZE) currentPhaseRight -= SINESIZE;
 			int32_t nextSampleRight = SineBuff[(uint16_t)(currentPhaseRight)];
 
-			PlayBuff[i] = (uint16_t)nextSampleLeft;
-			PlayBuff[i + 1] = (uint16_t)nextSampleRight;
+			PlayBuff[i] = (uint16_t)((float)nextSampleLeft * aBuff[counter]);
+			PlayBuff[i + 1] = (uint16_t)((float)nextSampleRight * aBuff[counter]);
 		}
 	}
 }
+
+
+
 

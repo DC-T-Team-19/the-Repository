@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "myCode.h"
+#include "basicFunctions.h"
+#include "ADSR.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -87,8 +88,8 @@ int main(void)
   /* Initialise all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-  mySysInitCode();
-  mySetupThingsStuff();
+  initialiseAudio();
+  setupAudio();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -98,7 +99,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    myMainWhileLoopStuff();
+    mainWhileLoop();
+
 
     // Flash some LEDs to check things are awake and running:
    	if (mainLoopCount++ >= 200000) {
@@ -108,6 +110,9 @@ int main(void)
    	if (LEDstate) BLUEON;
    	else BLUEOFF;
   }
+
+
+
   /* USER CODE END 3 */
 }
 
