@@ -8,18 +8,25 @@
 
 int16_t PlayBuff[PBSIZE];
 int16_t SineBuff[SINESIZE];
+float SineModBuff[SINESIZE];
 uint16_t buffer_offset = 0;
 enum eNoteStatus { ready, going, finish }  noteStatus = ready;
 enum eBufferStatus { empty, finished, firstHalfReq, firstHalfDone, secondHalfReq, secondHalfDone }  bufferStatus = empty;
+enum efreqModStatus { on, off } freqModStatus = on;
 
 // Set up the first note:
 float noteFrequencyLeft = 220.0f;
 float noteFrequencyRight = 220.0f;
+float noteFrequencyMod = 1.0f;
 float currentPhaseLeft = 0.0;
 float currentPhaseRight = 0.0;
+float currentPhaseMod = 0.0f;
 float phaseIncLeft = 0.0f;
 float phaseIncRight = 0.0f;
-uint32_t amplitude = 20000;
+float phaseIncMod = 0.0f;
+float ampMod = 1;
+uint32_t maxAmplitude = 32760;
+int range = 1;
 
 void initialiseAudio(void) {
 	  initAudioTimer();
@@ -35,6 +42,7 @@ void initialiseAudio(void) {
 
 void setupAudio(){
 	createSineTable();
+	createModSineTable();
     silenceBuff(); // Silence the buffer
 
     updatePhase();
@@ -75,10 +83,41 @@ void myAudioTransferCompleteCallback(void) {
 	}
 }
 
-void changeFrequency(float newLeftFreq, float newRightFreq){
-	noteFrequencyLeft = newLeftFreq;
-	noteFrequencyRight = newRightFreq;
-	updatePhase();
+void changeFrequency(uint32_t newFreq){
+	if(newFreq != noteFrequencyLeft){
+		noteFrequencyLeft = newFreq;
+		noteFrequencyRight = newFreq;
+	}
+    //updatePhase();
+}
+
+void changeFrequencyMod(float newFreq){
+	if(freqModStatus == on){
+		noteFrequencyMod = newFreq;
+	}
+	else{
+		noteFrequencyMod = 0;
+	}
+	//phaseIncMod = SINESIZE * noteFrequencyMod / AUDIO_FREQUENCY_44K;
+}
+
+int checkFreqModActive(){
+	if(freqModStatus == on){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+void setFreqModState(){
+	if(freqModStatus == on){
+		freqModStatus = off;
+		noteFrequencyMod = 0;
+	}
+	else if(freqModStatus = off){
+		freqModStatus = on;
+	}
 }
 
 void updatePhase(){
@@ -86,15 +125,8 @@ void updatePhase(){
     phaseIncRight = SINESIZE * noteFrequencyRight / AUDIO_FREQUENCY_44K;
 }
 
-void changeAmplitude(uint32_t newAmplitude){
-	if(bufferStatus == firstHalfDone){
-		amplitude = newAmplitude;
-		createSineTable();
-	}
-	else if (bufferStatus == secondHalfDone){
-		amplitude = newAmplitude;
-		createSineTable();
-	}
+void changeAmplitude(uint32_t value){
+	ampMod = value/4096;
 }
 
 void firstHalfReqFill(){
@@ -129,25 +161,39 @@ void start(){
 
 void createSineTable(){
 	for (int i = 0; i <= SINESIZE; i++) {
-		float q = amplitude * sin(i * 2.0 * PI / SINESIZE);
+		float q = maxAmplitude * sin(i * 2.0 * PI / SINESIZE);
 		SineBuff[i] = (int16_t)q;
+	}
+}
+
+void createModSineTable(){
+	for (int i = 0; i <= SINESIZE; i++) {
+		float q = sin(i * 2.0 * PI / SINESIZE);
+		SineModBuff[i] = q;
 	}
 }
 
 void fill(uint32_t startFill, uint32_t endFill){
 	if(startFill != endFill){
 		for (int i = startFill; i < endFill; i += 2){
+			phaseIncMod = SINESIZE * noteFrequencyMod/ AUDIO_FREQUENCY_44K;
+			currentPhaseMod += phaseIncMod;
+			if (currentPhaseMod > SINESIZE) currentPhaseMod -= SINESIZE;
+
+			phaseIncLeft = SINESIZE * noteFrequencyLeft * powf(range+1, SineModBuff[(uint16_t)currentPhaseMod])/ AUDIO_FREQUENCY_44K;
 			currentPhaseLeft += phaseIncLeft;
 			if (currentPhaseLeft > SINESIZE) currentPhaseLeft -= SINESIZE;
 			int32_t nextSampleLeft = SineBuff[(uint16_t)(currentPhaseLeft)];
 
+			phaseIncRight = SINESIZE * noteFrequencyRight * powf(range+1, SineModBuff[(uint16_t)currentPhaseMod])/ AUDIO_FREQUENCY_44K;
 			currentPhaseRight += phaseIncRight;
 			if (currentPhaseRight > SINESIZE) currentPhaseRight -= SINESIZE;
 			int32_t nextSampleRight = SineBuff[(uint16_t)(currentPhaseRight)];
 
-			PlayBuff[i] = (uint16_t)nextSampleLeft;
-			PlayBuff[i + 1] = (uint16_t)nextSampleRight;
+			PlayBuff[i] = (uint16_t)(nextSampleLeft);
+			PlayBuff[i + 1] = (uint16_t)(nextSampleRight);
 		}
 	}
 }
+
 

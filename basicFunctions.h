@@ -10,6 +10,8 @@
 
 #include "Audio_Drivers.h"
 #include "audio_replacement.h"
+#include "interfacing.h"
+#include "cs43l22.h"
 
 // Some user-friendly ways to turn the LEDS on and off:
 #define BLUEON GPIOD->ODR |= 0x8000
@@ -24,16 +26,19 @@
 void initialiseAudio(void);
 void setupAudio(void);
 void mainWhileLoop(void);
-void changeAmplitude(uint32_t newAmplitude);
+void changeAmplitude(uint32_t value);
 void firstHalfReqFill(void);
 void secondHalfReqFill(void);
 void fill(uint32_t startFill, uint32_t endFill);
-void changeFrequency(float newLeftFreq, float newRightFreq);
+void changeFrequency(uint32_t newFreq);
+void changeFrequencyMod(float newFreq);
+int checkFreqModActive();
+void setFreqModState();
 void updatePhase();
 void silenceBuff();
 void stop();
 void start();
 void createSineTable();
-
+void createModSineTable();
 
 #endif /* INC_BASICFUNCTIONS_H_ */
