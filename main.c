@@ -22,7 +22,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "myCode.h"
+#include "basicFunctions.h"
+#include "interfacing.h"
+#include "clockTime.h"
+#include "stm32f4xx_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +43,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
 
 /* USER CODE BEGIN PV */
 
@@ -48,6 +53,8 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -64,15 +71,13 @@ static void MX_GPIO_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	// This is an attempt to get the LEDs flashing.  Sadly, I can't use the SysTick_Handler,
-	// since there is a HAL library function already using it.
-	uint32_t mainLoopCount = 0;
-	uint32_t LEDstate = 0;
+	uint16_t ADC_Readings[3];
+	int octvMulti = 1;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, initialises the Flash interface and the Systick. */
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -84,11 +89,57 @@ int main(void)
   /* USER CODE BEGIN SysInit */
   /* USER CODE END SysInit */
 
-  /* Initialise all configured peripherals */
+  /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  mySysInitCode();
-  mySetupThingsStuff();
+  initialiseAudio();
+  setupAudio();
+
+  __GPIOA_CLK_ENABLE();
+  __GPIOB_CLK_ENABLE();
+  __GPIOC_CLK_ENABLE();
+
+  //Button Pins - B4, B5, B7, B8, B11, B12, B13, B14, B15
+  GPIO_InitTypeDef b4 = pinConstructor(GPIO_PIN_4, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b5 = pinConstructor(GPIO_PIN_5, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b7 = pinConstructor(GPIO_PIN_7, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b8 = pinConstructor(GPIO_PIN_8, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b11 = pinConstructor(GPIO_PIN_11, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b12 = pinConstructor(GPIO_PIN_12, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b13 = pinConstructor(GPIO_PIN_13, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b14 = pinConstructor(GPIO_PIN_14, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  GPIO_InitTypeDef b15 = pinConstructor(GPIO_PIN_15, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_LOW);
+  HAL_GPIO_Init(GPIOB, &b4);
+  HAL_GPIO_Init(GPIOB, &b5);
+  HAL_GPIO_Init(GPIOB, &b7);
+  HAL_GPIO_Init(GPIOB, &b8);
+  HAL_GPIO_Init(GPIOB, &b11);
+  HAL_GPIO_Init(GPIOB, &b12);
+  HAL_GPIO_Init(GPIOB, &b13);
+  HAL_GPIO_Init(GPIOB, &b14);
+  HAL_GPIO_Init(GPIOB, &b15);
+
+  //Joystick Analog Pins - A2, A3
+  GPIO_InitTypeDef joystickX = pinConstructor(GPIO_PIN_2, GPIO_MODE_ANALOG, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH);
+  HAL_GPIO_Init(GPIOA, &joystickX);
+  GPIO_InitTypeDef joystickY = pinConstructor(GPIO_PIN_3, GPIO_MODE_ANALOG, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH);
+  HAL_GPIO_Init(GPIOA, &joystickY);
+
+  //Pot Analog Pins - C2
+  GPIO_InitTypeDef potPin2 = pinConstructor(GPIO_PIN_2, GPIO_MODE_ANALOG, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH);
+  HAL_GPIO_Init(GPIOC, &potPin2);
+
+  //ADC
+  __HAL_RCC_ADC1_CLK_ENABLE();
+  hadc1.Instance = ADC1;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.NbrOfConversion = 3;
+  hadc1.Init.ScanConvMode = ENABLE;
+  HAL_ADC_Init(&hadc1);
+
+  hadc1.DMA_Handle = &hdma_adc1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -98,15 +149,54 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    myMainWhileLoopStuff();
+	//Update from ADC
+	HAL_ADC_Start_DMA(&hadc1, &ADC_Readings, 16);
+	mainWhileLoop();
+	updatePan(ADC_Readings[0]);
+	changeFrequencyMod(ADC_Readings[1]/512);
+	changeAmpMod((float)ADC_Readings[2]/4096);
 
-    // Flash some LEDs to check things are awake and running:
-   	if (mainLoopCount++ >= 200000) {
-   		mainLoopCount = 0;
-   		LEDstate = 1 - LEDstate;
-   	}
-   	if (LEDstate) BLUEON;
-   	else BLUEOFF;
+	//up and down octave
+	if(checkButtonPress(GPIOB, b15) == 1){
+		octvMulti = 2;
+	}
+
+	if(checkButtonPress(GPIOB, b14) == 1){
+		octvMulti = 1;
+	}
+	//C
+	if(checkButtonPress(GPIOB, b4) == 1){
+		changeFrequency(octvMulti * 130.0f);
+	}
+	//D
+	if(checkButtonPress(GPIOB, b5) == 1){
+		changeFrequency(octvMulti * 146.0f);
+	}
+	//E
+	if(checkButtonPress(GPIOB, b7) == 1){
+		changeFrequency(octvMulti * 164.0f);
+	}
+	//F
+	if(checkButtonPress(GPIOB, b8) == 1){
+		changeFrequency(octvMulti * 174.0f);
+	}
+	//G
+	if(checkButtonPress(GPIOB, b11) == 1){
+		changeFrequency(octvMulti * 196.0f);
+	}
+	//A
+	if(checkButtonPress(GPIOB, b12) == 1){
+		changeFrequency(octvMulti * 220.0f);
+	}
+	//B
+	if(checkButtonPress(GPIOB, b13) == 1){
+		changeFrequency(octvMulti * 246.0f);
+	}
+
+	if((checkButtonPress(GPIOB, b4) == 1) && (checkButtonPress(GPIOB, b5) == 1)){
+		changeFrequencyMod(1000);
+	}
+	HAL_ADC_Stop_DMA(&hadc1);
   }
   /* USER CODE END 3 */
 }
@@ -152,6 +242,88 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 3;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_12;
+  sConfig.Rank = 3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+
 }
 
 /**
